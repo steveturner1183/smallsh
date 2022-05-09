@@ -111,6 +111,8 @@ void expandPid(char* word, struct command *userCmd) {
 	userCmd->arguments[userCmd->totalArgs] = expandedWord;
 
 }
+
+
 /***************************************************************************************
 *	Function: processInput
 *            
@@ -127,7 +129,6 @@ void processInput(struct command* userCmd) {
     bool inputCheck = false;
     
     while (inputCheck == false) {
-    
 		// Set / Reset initial values for command stuct
 		memset(userCmd->arguments, 0, MAX_ARGS);
 		userCmd->arguments[0] = NULL;
@@ -362,25 +363,22 @@ void nonBuiltIn(struct command* userCmd) {
 
 				spawnPid = waitpid(spawnPid, &childStatus, 0);
 		
-				// CHECK TO SEE IF THIS IS USELESS?
-				if ((strcmp(userCmd->arguments[0], "cd") != 0) && (strcmp(userCmd->arguments[0], "exit") != 0) && (strcmp(userCmd->arguments[0], "status") != 0)) {
-					memset(userCmd->exitMessage, 0, 30);
+				memset(userCmd->exitMessage, 0, 30);
 				
-					// Child process exited successfully	
-					if (WIFEXITED(childStatus)) {
-						char *tempMess = "exit value";
-						strcpy(userCmd->exitMessage, tempMess);			
-						userCmd->exitValue = WEXITSTATUS(childStatus);
-						fflush(stdout);	
-					
-					// Child process terminated by signal
-					} else {
-						char *tempMess = "terminated by signal";
-						strcpy(userCmd->exitMessage, tempMess);
-						userCmd->exitValue = WTERMSIG(childStatus);
-						printf("terminated by signal %d\n", WTERMSIG(childStatus));
-						fflush(stdout);						
-					}
+				// Child process exited successfully	
+				if (WIFEXITED(childStatus)) {
+					char *tempMess = "exit value";
+					strcpy(userCmd->exitMessage, tempMess);			
+					userCmd->exitValue = WEXITSTATUS(childStatus);
+					fflush(stdout);	
+				
+				// Child process terminated by signal
+				} else {
+					char *tempMess = "terminated by signal";
+					strcpy(userCmd->exitMessage, tempMess);
+					userCmd->exitValue = WTERMSIG(childStatus);
+					printf("terminated by signal %d\n", WTERMSIG(childStatus));
+					fflush(stdout);						
 				}
 
 				break;
@@ -453,6 +451,9 @@ int main (int argc, char *argv[]) {
 	// Initialize struct that while hold all smallsh commands
 	struct command userCmd;
 	userCmd.exitValue = 0;
+	char *tempMess = "exit value";
+	strcpy(userCmd.exitMessage, tempMess);	
+
 	userCmd.bgIndex = 0;
 	userCmd.foregroundOnly = false;
 	memset(userCmd.backgroundPIDs, 0, MAX_BG_PROCESS);
@@ -477,7 +478,7 @@ int main (int argc, char *argv[]) {
 		sigaction(SIGINT, &userCmd.SIGINT_action, NULL);
 
 		// Reap completed background processes
-		finishedBackground(&userCmd);
+		//finishedBackground(&userCmd);
 			
 		// Gather user input and store in command struct
 		processInput(&userCmd);

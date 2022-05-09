@@ -29,7 +29,7 @@ struct command {
     int exitValue; 
 };
 
-sigset_t base_mask, waiting_mask;
+//sigset_t base_mask, waiting_mask;
 volatile sig_atomic_t signalStatus;
 
 /*****************************************************
@@ -41,7 +41,7 @@ volatile sig_atomic_t signalStatus;
 *
 *
 *****************************************************/
-
+/*
 void handle_SIGINT(int signo) {
 	pid_t pid = getpid();
 	char* message = "terminated by signal 2";
@@ -49,9 +49,9 @@ void handle_SIGINT(int signo) {
 	//write(STDOUT_FILENO, &signo, 2);
 	char *newline = "\n";
 	write(STDOUT_FILENO, newline, 1);
+	fflush(stdout);	
 	
-	
-}
+}*/
 
 void handle_SIGTSTP(int signo) {
 	if (signalStatus == 0) {
@@ -128,24 +128,24 @@ void processInput(struct command* userCmd) {
     bool inputCheck = false;
     
     while (inputCheck == false) {
-        memset(userCmd->arguments, 0, MAX_ARGS);
+        // Set / Reset initial values for command stuct
+	memset(userCmd->arguments, 0, MAX_ARGS);
         userCmd->arguments[0] = NULL;
         userCmd->foreground = true;
-	userCmd->foregroundOnly = false;
-        userCmd->totalArgs = 0;
+	userCmd->totalArgs = 0;
         userCmd->inputFile = "/dev/null";
         userCmd->outputFile = "/dev/null";
  
-	
+	// Get user input
         char* inputBuf;
         size_t buf = 0;
         ssize_t args; 
         
         printf(":");
         fflush(stdout);
-       
-       args = getline(&inputBuf, &buf, stdin);
+       	args = getline(&inputBuf, &buf, stdin);
  
+	// Set foreground only if ctrl-Z was entered during prompt
 	if (signalStatus == 0) {
 		userCmd->foregroundOnly = false;
 	} else if (signalStatus == 1) {
@@ -154,25 +154,20 @@ void processInput(struct command* userCmd) {
 
         // Check chars entered vs max input
         if (args > MAX_CHARS) {
-            printf("\nToo many characters entered\n");
-            fflush(stdout);
-            free(inputBuf);
-
+        	printf("\nToo many characters entered\n");
+        	fflush(stdout);
+        	free(inputBuf);
         } else {
-            int count = 0;
-            
-            char* input = strtok(inputBuf, " \n");
-
-            if (input != NULL && strcmp(input, "#") != 0) { // Skip comments and blank lines
-                //userCmd->command = input;
-                	
-		//input = strtok(NULL, " \n");
-                
-                while (input != NULL && count <= MAX_ARGS) {
-			
-                    if (strcmp(input, "<") == 0) {
-                        input = strtok(NULL, " \n");
-                        userCmd->inputFile = input;
+		int count = 0;
+        	char* input = strtok(inputBuf, " \n");		
+		
+            	if (input == NULL || input[0] == '#') { // Skip comments and blank lines
+			free(inputBuf);
+		} else {               
+                    while (input != NULL && count <= MAX_ARGS) {
+        	        if (strcmp(input, "<") == 0) {
+                	input = strtok(NULL, " \n");
+                	userCmd->inputFile = input;
                         input = strtok(NULL, " \n");
                         
                     } else if ((strcmp(input, ">") == 0)) {
@@ -340,8 +335,8 @@ void non_built_in_cmd(struct command* userCmd) {
 			exit(1);
 			break;
 		case 0:  // child process	
-			//userCmd->SIGINT_action.sa_handler = handle_SIGINT;
-			//sigaction(SIGINT, &userCmd->SIGINT_action, NULL);
+			userCmd->SIGINT_action.sa_handler = SIG_DFL;
+			sigaction(SIGINT, &userCmd->SIGINT_action, NULL);
 
 			//userCmd->SIGTSTP_action.sa_handler = SIG_IGN;
 			//sigaction(SIGTSTP, &userCmd->SIGTSTP_action, NULL);
@@ -355,8 +350,8 @@ void non_built_in_cmd(struct command* userCmd) {
 			break;
 		default: // parent process
 			if (userCmd->foreground == true) {
-				userCmd->SIGINT_action.sa_handler = handle_SIGINT;
-				sigaction(SIGINT, &userCmd->SIGINT_action, NULL);
+				//userCmd->SIGINT_action.sa_handler = handle_SIGINT;
+				//sigaction(SIGINT, &userCmd->SIGINT_action, NULL);
 
 				spawnPid = waitpid(spawnPid, &childStatus, 0);
 		
@@ -365,11 +360,6 @@ void non_built_in_cmd(struct command* userCmd) {
 				
 					// Child process exited successfully	
 					if (WIFEXITED(childStatus)) {
-						printf("\nCOMMAND -> %s\n", userCmd->arguments[0]);
-						printf("PID -> %d\n", spawnPid);
-						printf("GOOD Status %d\n", WIFEXITED(spawnPid));		
-						printf("BAD Status %d\n", WIFSIGNALED(spawnPid));
-	
 						char *tempMess = "exit value";
 						strcpy(userCmd->exitMessage, tempMess);			
 						userCmd->exitValue = WEXITSTATUS(childStatus);
@@ -378,6 +368,7 @@ void non_built_in_cmd(struct command* userCmd) {
 						char *tempMess = "terminated by signal";
 						strcpy(userCmd->exitMessage, tempMess);
 						userCmd->exitValue = WTERMSIG(childStatus);
+						printf("terminated by signal %d\n", WTERMSIG(childStatus));
 						
 					}
 				}
@@ -473,8 +464,8 @@ int main (int argc, char *argv[]) {
 
 	userCmd.bgIndex = 0;
  	memset(userCmd.backgroundPIDs, 0, MAX_BG_PROCESS);
-
-
+	userCmd.foregroundOnly = false;
+	
     	while(1) {
     	
 	//sigpending(&waiting_mask);

@@ -478,7 +478,7 @@ int main (int argc, char *argv[]) {
 		sigaction(SIGINT, &userCmd.SIGINT_action, NULL);
 
 		// Reap completed background processes
-		//finishedBackground(&userCmd);
+		finishedBackground(&userCmd);
 			
 		// Gather user input and store in command struct
 		processInput(&userCmd);
